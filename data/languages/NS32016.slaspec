@@ -1,0 +1,231 @@
+#
+# National Semiconductor NS32016 
+#
+
+define endian=little;
+define alignment=1;
+
+define space ram type=ram_space size=4 default;
+define space register type=register_space size=4;
+
+define register offset=0x00 size=4 [ R0 R1 R2 R3 R4 R5 R6 R7 ];
+define register offset=0x20 size=4 [ PC SB FP SP1 SP0 INTBASE ];
+define register offset=0x40 size=2 [ PSR MOD ];
+define register offset=0x48 size=1 [ CFG ];
+define register offset=0x60 size=8 [ contextreg ];
+
+define context contextreg
+  isize=(0,1)
+  ccode=(2,5)
+;
+
+define bitrange C=PSR[0,1]
+                T=PSR[1,1]
+                L=PSR[2,1]
+                F=PSR[5,1]
+                Z=PSR[6,1]
+                N=PSR[7,1]
+                U=PSR[8,1]
+                S=PSR[9,1]
+                P=PSR[10,1]
+                I=PSR[11,1];
+
+#
+# 8 bit instructions - format 0 and 1
+#
+define token insn8(8)
+	insn8_all=(0,7)
+    b0_3=(0,3)
+    cond=(4,7)
+    op=(4,7)
+;
+
+#
+# 16 bit instructions
+#
+define token insn16(16)
+    insn16_all=(0,15)
+    insn16_i=(0,1)
+
+    fmt2_2_3=(2,3)
+    fmt2_op=(4,6)
+    fmt2_short=(7,10)
+    fmt2_gen=(11,15)
+
+    fmt3_2_6=(2,6)
+    fmt3_op=(7,10)
+    fmt3_gen=(11,15)
+
+    fmt4_op=(2,5)
+    fmt4_gen2=(6,10)
+    fmt4_gen1=(11,15)
+;
+
+#
+# Immediate constants, big endian
+#
+define token imm_8(8)
+    imm8=(0,7)
+    simm8=(0,7) signed
+;
+
+define token imm_16(16) endian=big
+    imm16=(0,15)
+    simm16=(0,15) signed
+;
+
+define token imm_32(32) endian=big
+    imm32=(0,31)
+    simm32=(0,31) signed
+;
+
+#
+# Variable length displacements, big endian
+#
+define token disp8(8) endian=big
+    d8_mask=(7,7)
+    val8=(0,6) signed
+;
+
+define token disp16(16) endian=big
+    d16_mask=(14,15)
+    val16=(0,13) signed
+;
+
+define token disp32(32) endian=big
+    d32_mask=(30,31)
+    val32=(0,29) signed
+;
+
+define token index(8)
+    idx_reg=(0,2)
+    idx_gen=(3,7)
+;
+
+#
+# Displacement table
+#
+disp:  val8 is  d8_mask=0b0  &  val8 { export  val8; }
+disp: val16 is d16_mask=0b10 & val16 { export val16; }
+disp: val32 is d32_mask=0b11 & val32 { export val32; }
+
+#
+# Condition codes table
+#
+cc: "EQ" is cond=0b0000 { tmp:1 =  Z; export tmp; }
+cc: "NE" is cond=0b0001 { tmp:1 = !Z; export tmp; }
+cc: "CS" is cond=0b0010 { tmp:1 =  C; export tmp; }
+cc: "CC" is cond=0b0011 { tmp:1 = !C; export tmp; }
+cc: "H"  is cond=0b0100 { tmp:1 =  L; export tmp; }
+cc: "LS" is cond=0b0101 { tmp:1 = !L; export tmp; }
+cc: "GT" is cond=0b0110 { tmp:1  = N; export tmp; }
+cc: "LE" is cond=0b0111 { tmp:1 = !N; export tmp; }
+cc: "FS" is cond=0b1000 { tmp:1 =  F; export tmp; }
+cc: "FC" is cond=0b1001 { tmp:1 = !F; export tmp; }
+cc: "LO" is cond=0b1010 { tmp:1 = !L && !Z; export tmp; }
+cc: "HS" is cond=0b1011 { tmp:1 =  L ||  Z; export tmp; }
+cc: "LT" is cond=0b1100 { tmp:1 = !N && !Z; export tmp; }
+cc: "GE" is cond=0b1101 { tmp:1 =  N ||  Z; export tmp; }
+cc: "T"  is cond=0b1110 { export 1:1; }
+cc: "F"  is cond=0b1111 { export 0:1; }
+
+i: "B" is insn16_i=0b00 [ isize = 0b00; ] {}
+i: "W" is insn16_i=0b01 [ isize = 0b01; ] {}
+i: "D" is insn16_i=0b11 [ isize = 0b11; ] {}
+
+imm: "#"^imm8  is isize=0b00 &  imm8 { export *[const]:4 imm8; }
+imm: "#"^imm16 is isize=0b01 & imm16 { export *[const]:4 imm16; }
+imm: "#"^imm32 is isize=0b11 & imm32 { export *[const]:4 imm32; }
+
+# bdest: reloc is disp [ reloc=inst_start+disp; ] { export *[ram]:4 reloc; }
+
+areg: "US" is fmt2_short=0b0000 {}
+areg: "FP" is fmt2_short=0b1000 {}
+areg: "SP" is fmt2_short=0b1001 {}
+areg: "SB" is fmt2_short=0b1010 {}
+areg: "PSR" is fmt2_short=0b1101 {}
+areg: "INTBASE" is fmt2_short=0b1110 {}
+areg: "MOD" is fmt2_short=0b1111 {}
+
+#
+# General addressing modes
+#
+gen: "R0" is fmt2_gen=0b00000 {}
+gen: "R1" is fmt2_gen=0b00001 {}
+gen: "R2" is fmt2_gen=0b00010 {}
+gen: "R3" is fmt2_gen=0b00011 {}
+gen: "R4" is fmt2_gen=0b00100 {}
+gen: "R5" is fmt2_gen=0b00101 {}
+gen: "R6" is fmt2_gen=0b00110 {}
+gen: "R7" is fmt2_gen=0b00111 {}
+gen: disp^"(R0)" is fmt2_gen=0b01000 ; disp {}
+gen: disp^"(R1)" is fmt2_gen=0b01001 ; disp {}
+gen: disp^"(R2)" is fmt2_gen=0b01010 ; disp {}
+gen: disp^"(R3)" is fmt2_gen=0b01011 ; disp {}
+gen: disp^"(R4)" is fmt2_gen=0b01100 ; disp {}
+gen: disp^"(R5)" is fmt2_gen=0b01101 ; disp {}
+gen: disp^"(R6)" is fmt2_gen=0b01110 ; disp {}
+gen: disp^"(R7)" is fmt2_gen=0b01111 ; disp {}
+gen: imm is fmt2_gen=0b10100; imm {}
+gen: @disp is fmt2_gen=0b10101; disp {}
+gen: "TOS" is fmt2_gen=0b10111 {}
+gen: disp^("FP") is fmt2_gen=0b11000 ; disp {}
+gen: disp^("SP") is fmt2_gen=0b11001 ; disp {}
+gen: disp^("SB") is fmt2_gen=0b11010 ; disp {}
+gen: *+disp is fmt2_gen=0b11011 ; disp {}
+
+# Format 0 - Conditional branch
+:B^cc +disp is b0_3=0b1010 & cc ; disp {}
+
+# Format 1 
+:BSR  +disp is b0_3=0b0010 & op=0b0000 ; disp {}
+:RET  disp is b0_3=0b0010 & op=0b0001 ; disp {}
+:CXP  disp is b0_3=0b0010 & op=0b0010 ; disp {}
+:RXP  disp is b0_3=0b0010 & op=0b0011 ; disp {}
+:RETT disp is b0_3=0b0010 & op=0b0100 ; disp {}
+:RETI      is b0_3=0b0010 & op=0b0101 {}
+:SAVE    imm8 is b0_3=0b0010 & op=0b0110 ; imm8 {}
+:RESTORE imm8 is b0_3=0b0010 & op=0b0111 ; imm8 {}
+:ENTER imm8,disp is b0_3=0b0010 & op=0b1000 ; imm8; disp {}
+:EXIT  imm8 is b0_3=0b0010 & op=0b1001 ; imm8 {}
+:NOP  is b0_3=0b0010 & op=0b1010 {}
+:WAIT is b0_3=0b0010 & op=0b1011 {}
+:DIA  is b0_3=0b0010 & op=0b1100 {}
+:FLAG is b0_3=0b0010 & op=0b1101 {}
+:SVC  is b0_3=0b0010 & op=0b1110 {}
+:BPT  is b0_3=0b0010 & op=0b1111 {}
+
+# Format 2
+:ADDQ  is insn16_i & fmt2_2_3=0b11 & fmt2_op=0b000 & fmt2_short & fmt2_gen {}
+:CMPQ  is insn16_i & fmt2_2_3=0b11 & fmt2_op=0b001 & fmt2_short & fmt2_gen {}
+:SPR   is insn16_i & fmt2_2_3=0b11 & fmt2_op=0b010 & fmt2_short & fmt2_gen {}
+:SCOND is insn16_i & fmt2_2_3=0b11 & fmt2_op=0b011 & fmt2_short & fmt2_gen {}
+:ACB   is insn16_i & fmt2_2_3=0b11 & fmt2_op=0b100 & fmt2_short & fmt2_gen {}
+:MOVQ  is insn16_i & fmt2_2_3=0b11 & fmt2_op=0b101 & fmt2_short & fmt2_gen {}
+:LPR^i areg,gen is (i & fmt2_2_3=0b11 & fmt2_op=0b110 & areg)... & gen {}
+
+# Format 3
+:CXPD   is insn16_i & fmt3_2_6=0b11111 & fmt3_op=0b0000 & fmt3_gen {}
+:BICPSR^i gen is (i & fmt3_2_6=0b11111 & fmt3_op=0b0010)... & gen {}
+:JUMP gen is (i & fmt3_2_6=0b11111 & fmt3_op=0b0100)... & gen {}
+:BISPSR^i gen is (i & fmt3_2_6=0b11111 & fmt3_op=0b0110)... & gen {}
+:ADJSP  is insn16_i & fmt3_2_6=0b11111 & fmt3_op=0b1010 & fmt3_gen {}
+:JSR    is insn16_i & fmt3_2_6=0b11111 & fmt3_op=0b1100 & fmt3_gen {}
+:CASE   is insn16_i & fmt3_2_6=0b11111 & fmt3_op=0b1110 & fmt3_gen {}
+
+# Format 4
+:ADD    is insn16_i & fmt4_op=0b0000 & fmt4_gen2 & fmt4_gen1 {}
+:CMP    is insn16_i & fmt4_op=0b0001 & fmt4_gen2 & fmt4_gen1 {}
+:BIC    is insn16_i != 0b10 & fmt4_op=0b0010 & fmt4_gen2 & fmt4_gen1 {}
+:ADDC   is insn16_i & fmt4_op=0b0100 & fmt4_gen2 & fmt4_gen1 {}
+:MOV^i gen,"XXX" is (i & fmt4_op=0b0101 & fmt4_gen2)... & gen {}
+:OR     is insn16_i != 0b10 & fmt4_op=0b0110 & fmt4_gen2 & fmt4_gen1 {}
+:SUB    is insn16_i & fmt4_op=0b1000 & fmt4_gen2 & fmt4_gen1 {}
+:ADDR   is insn16_i & fmt4_op=0b1001 & fmt4_gen2 & fmt4_gen1 {}
+:AND    is insn16_i != 0b10 & fmt4_op=0b1010 & fmt4_gen2 & fmt4_gen1 {}
+:SUBC   is insn16_i & fmt4_op=0b1100 & fmt4_gen2 & fmt4_gen1 {}
+:TBIT   is insn16_i & fmt4_op=0b1101 & fmt4_gen2 & fmt4_gen1 {}
+:XOR    is insn16_i != 0b10 & fmt4_op=0b1110 & fmt4_gen2 & fmt4_gen1 {}
+
+# Catch all
+:UNK.^insn8_all is insn8_all {}

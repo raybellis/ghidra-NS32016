@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<language_definitions>
+  <language processor="NS32016"
+            endian="little"
+            size="32"
+            variant="default"
+            version="1.0"
+            slafile="NS32016.sla"
+            processorspec="NS32016.pspec"
+            id="NS32016:LE:32:default">
+    <description>Natsemi NS32016</description>
+    <compiler name="default" spec="NS32016.cspec" id="default"/>
+  </language>
+</language_definitions>
