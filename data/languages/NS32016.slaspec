@@ -16,7 +16,6 @@ define register offset=0x60 size=8 [ contextreg ];
 
 define context contextreg
   isize=(0,1)
-  ccode=(2,5)
 ;
 
 define bitrange C=PSR[0,1]
@@ -50,7 +49,11 @@ define token insn16(16)
     fmt2_2_3=(2,3)
     fmt2_op=(4,6)
     fmt2_short=(7,10)
+    fmt2_short_areg=(7,10)
     fmt2_gen=(11,15)
+    fmt2_gen_reg=(11,13)
+    fmt2_gen_areg=(11,13)
+    fmt2_gen_op=(14,15)
 
     fmt3_2_6=(2,6)
     fmt3_op=(7,10)
@@ -103,11 +106,17 @@ define token index(8)
 ;
 
 #
+# register mapping fields
+#
+attach variables [ fmt2_gen_reg idx_reg ] [ R0 R1 R3 R3 R4 R5 R6 R7 ];
+attach variables fmt2_gen_areg [ FP SP1 SB _ _ _ _ _ ];
+
+#
 # Displacement table
 #
-disp:  val8 is  d8_mask=0b0  &  val8 { export  val8; }
-disp: val16 is d16_mask=0b10 & val16 { export val16; }
-disp: val32 is d32_mask=0b11 & val32 { export val32; }
+disp:  val8 is  d8_mask=0b0  &  val8 { tmp:4 = val8; export tmp; }
+disp: val16 is d16_mask=0b10 & val16 { tmp:4 = val16; export tmp; }
+disp: val32 is d32_mask=0b11 & val32 { tmp:4 = val32; export tmp; }
 
 #
 # Condition codes table
@@ -137,7 +146,9 @@ imm: "#"^imm8  is isize=0b00 &  imm8 { export *[const]:4 imm8; }
 imm: "#"^imm16 is isize=0b01 & imm16 { export *[const]:4 imm16; }
 imm: "#"^imm32 is isize=0b11 & imm32 { export *[const]:4 imm32; }
 
-# bdest: reloc is disp [ reloc=inst_start+disp; ] { export *[ram]:4 reloc; }
+bdest: reloc is  d8_mask=0b0  &  val8 [ reloc=inst_start+val8; ] { export *[ram]:4 reloc; }
+bdest: reloc is d16_mask=0b10 & val16 [ reloc=inst_start+val16; ] { export *[ram]:4 reloc; }
+bdest: reloc is d32_mask=0b11 & val32 [ reloc=inst_start+val32; ] { export *[ram]:4 reloc; }
 
 areg: "US" is fmt2_short=0b0000 {}
 areg: "FP" is fmt2_short=0b1000 {}
@@ -150,35 +161,19 @@ areg: "MOD" is fmt2_short=0b1111 {}
 #
 # General addressing modes
 #
-gen: "R0" is fmt2_gen=0b00000 {}
-gen: "R1" is fmt2_gen=0b00001 {}
-gen: "R2" is fmt2_gen=0b00010 {}
-gen: "R3" is fmt2_gen=0b00011 {}
-gen: "R4" is fmt2_gen=0b00100 {}
-gen: "R5" is fmt2_gen=0b00101 {}
-gen: "R6" is fmt2_gen=0b00110 {}
-gen: "R7" is fmt2_gen=0b00111 {}
-gen: disp^"(R0)" is fmt2_gen=0b01000 ; disp {}
-gen: disp^"(R1)" is fmt2_gen=0b01001 ; disp {}
-gen: disp^"(R2)" is fmt2_gen=0b01010 ; disp {}
-gen: disp^"(R3)" is fmt2_gen=0b01011 ; disp {}
-gen: disp^"(R4)" is fmt2_gen=0b01100 ; disp {}
-gen: disp^"(R5)" is fmt2_gen=0b01101 ; disp {}
-gen: disp^"(R6)" is fmt2_gen=0b01110 ; disp {}
-gen: disp^"(R7)" is fmt2_gen=0b01111 ; disp {}
-gen: imm is fmt2_gen=0b10100; imm {}
-gen: @disp is fmt2_gen=0b10101; disp {}
-gen: "TOS" is fmt2_gen=0b10111 {}
-gen: disp^("FP") is fmt2_gen=0b11000 ; disp {}
-gen: disp^("SP") is fmt2_gen=0b11001 ; disp {}
-gen: disp^("SB") is fmt2_gen=0b11010 ; disp {}
-gen: *+disp is fmt2_gen=0b11011 ; disp {}
+gen: fmt2_gen_reg is fmt2_gen_op=0b00 & fmt2_gen_reg { export fmt2_gen_reg; }
+gen: disp(fmt2_gen_reg) is fmt2_gen_op=0b01 & fmt2_gen_reg ; disp { tmp:4 = fmt2_gen_reg + disp; export tmp; }
+gen: imm is fmt2_gen=0b10100; imm { export imm; }
+gen: @disp is fmt2_gen=0b10101; disp { export disp; }
+gen: "TOS" is fmt2_gen=0b10111 { export SP1; }
+gen: disp(fmt2_gen_areg) is fmt2_gen_op=0b11 & fmt2_gen_areg ; disp { tmp:4 = fmt2_gen_areg + disp; export tmp; }
+gen: *+disp is fmt2_gen=0b11011 ; disp { tmp:4 = PC + disp; export tmp; }
 
 # Format 0 - Conditional branch
-:B^cc +disp is b0_3=0b1010 & cc ; disp {}
+:B^cc bdest is b0_3=0b1010 & cc ; bdest { if (cc) goto bdest; }
 
 # Format 1 
-:BSR  +disp is b0_3=0b0010 & op=0b0000 ; disp {}
+:BSR  bdest is b0_3=0b0010 & op=0b0000 ; bdest { call bdest; }
 :RET  disp is b0_3=0b0010 & op=0b0001 ; disp {}
 :CXP  disp is b0_3=0b0010 & op=0b0010 ; disp {}
 :RXP  disp is b0_3=0b0010 & op=0b0011 ; disp {}
@@ -218,7 +213,7 @@ gen: *+disp is fmt2_gen=0b11011 ; disp {}
 :CMP    is insn16_i & fmt4_op=0b0001 & fmt4_gen2 & fmt4_gen1 {}
 :BIC    is insn16_i != 0b10 & fmt4_op=0b0010 & fmt4_gen2 & fmt4_gen1 {}
 :ADDC   is insn16_i & fmt4_op=0b0100 & fmt4_gen2 & fmt4_gen1 {}
-:MOV^i gen,"XXX" is (i & fmt4_op=0b0101 & fmt4_gen2)... & gen {}
+:MOV^i gen,fmt4_gen2 is (i & fmt4_op=0b0101 & fmt4_gen2)... & gen {}
 :OR     is insn16_i != 0b10 & fmt4_op=0b0110 & fmt4_gen2 & fmt4_gen1 {}
 :SUB    is insn16_i & fmt4_op=0b1000 & fmt4_gen2 & fmt4_gen1 {}
 :ADDR   is insn16_i & fmt4_op=0b1001 & fmt4_gen2 & fmt4_gen1 {}
