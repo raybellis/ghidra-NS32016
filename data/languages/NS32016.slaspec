@@ -237,18 +237,20 @@ gen: *+disp is i16_gen1=0b11011 ; disp { tmp:4 = PC + disp; export tmp; }
 :CASE   gen is (i & fmt3_2_6=0b11111 & fmt3_op=0b1110)... & gen {}
 
 # Format 4
+with : i16_i != 0b10 {
+    :BIC    is (i & fmt4_op=0b0010 & i16_gen2)... & gen {}
+    :OR     is (i & fmt4_op=0b0110 & i16_gen2)... & gen {}
+    :XOR    is (i & fmt4_op=0b1110 & i16_gen2)... & gen {}
+    :AND    is (i & fmt4_op=0b1010 & i16_gen2)... & gen {}
+}
 :ADD    is (i & fmt4_op=0b0000 & i16_gen2)... & gen {}
 :CMP    is (i & fmt4_op=0b0001 & i16_gen2)... & gen {}
-:BIC    is (i & i16_i != 0b10 & fmt4_op=0b0010 & i16_gen2)... & gen {}
 :ADDC   is (i & fmt4_op=0b0100 & i16_gen2)... & gen {}
 :MOV^i gen,i16_gen2 is (i & fmt4_op=0b0101 & i16_gen2)... & gen {}
-:OR     is (i & i16_i != 0b10 & fmt4_op=0b0110 & i16_gen2)... & gen {}
 :SUB    is (i & fmt4_op=0b1000 & i16_gen2)... & gen {}
 :ADDR   is (i & fmt4_op=0b1001 & i16_gen2)... & gen {}
-:AND    is (i & i16_i != 0b10 & fmt4_op=0b1010 & i16_gen2)... & gen {}
 :SUBC   is (i & fmt4_op=0b1100 & i16_gen2)... & gen {}
 :TBIT   is (i & fmt4_op=0b1101 & i16_gen2)... & gen {}
-:XOR    is (i & i16_i != 0b10 & fmt4_op=0b1110 & i16_gen2)... & gen {}
 
 # Catch all
 :UNK.^insn8_all is insn8_all {}
