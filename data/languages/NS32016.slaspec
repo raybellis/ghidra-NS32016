@@ -204,7 +204,7 @@ cfg: "CFG" is fmt5_cfg {}
 #
 gen1: i16_gen1_r is i16_gen1_op=0b00 & i16_gen1_r { export i16_gen1_r; }
 gen1: disp(i16_gen1_r) is i16_gen1_op=0b01 & i16_gen1_r ; disp { tmp:4 = i16_gen1_r + disp; export tmp; }
-gen1: imm is 16_gen1=0b10100 ; imm { export imm; }
+gen1: imm is i16_gen1=0b10100 ; imm { export imm; }
 gen1: @disp is i16_gen1=0b10101 ; disp { export disp; }
 gen1: "TOS" is i16_gen1=0b10111 { export SP1; }
 gen1: disp(i16_gen1_a) is i16_gen1_op=0b11 & i16_gen1_a ; disp { tmp:4 = i16_gen1_a + disp; export tmp; }
