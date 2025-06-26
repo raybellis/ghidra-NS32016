@@ -204,8 +204,8 @@ cfg: "CFG" is fmt5_cfg {}
 #
 gen1: i16_gen1_r is i16_gen1_op=0b00 & i16_gen1_r { export i16_gen1_r; }
 gen1: disp(i16_gen1_r) is i16_gen1_op=0b01 & i16_gen1_r ; disp { tmp:4 = i16_gen1_r + disp; export tmp; }
-gen1: imm is i16_gen1=0b10100; imm { export imm; }
-gen1: @disp is i16_gen1=0b10101; disp { export disp; }
+gen1: imm is 16_gen1=0b10100 ; imm { export imm; }
+gen1: @disp is i16_gen1=0b10101 ; disp { export disp; }
 gen1: "TOS" is i16_gen1=0b10111 { export SP1; }
 gen1: disp(i16_gen1_a) is i16_gen1_op=0b11 & i16_gen1_a ; disp { tmp:4 = i16_gen1_a + disp; export tmp; }
 gen1: *+disp is i16_gen1=0b11011 ; disp { tmp:4 = PC + disp; export tmp; }
@@ -214,10 +214,10 @@ gen1: idx_gen[idx_reg^":W"] is i16_gen1=0b11101 ; idx_reg & idx_gen { export 0:4
 gen1: idx_gen[idx_reg^":Q"] is i16_gen1=0b11110 ; idx_reg & idx_gen { export 0:4; }
 gen1: idx_gen[idx_reg^":D"] is i16_gen1=0b11111 ; idx_reg & idx_gen { export 0:4; }
 
-gen2: i16_gen2_r is i16_gen2_op=0b00 & i16_gen2_r { export i16_gen2_r; }
+gen2: i16_gen2_r is (i16_gen2_op=0b00 & i16_gen2_r) ... { export i16_gen2_r; }
 gen2: disp(i16_gen2_r) is i16_gen2_op=0b01 & i16_gen2_r ; disp { tmp:4 = i16_gen2_r + disp; export tmp; }
-gen2: imm is i16_gen2=0b10100; imm { export imm; }
-gen2: @disp is i16_gen2=0b10101; disp { export disp; }
+gen2: imm is (i16_gen2=0b10100) ; imm { export imm; }
+gen2: @disp is (i16_gen2=0b10101) ... & disp { export disp; }
 gen2: "TOS" is i16_gen2=0b10111 { export SP1; }
 gen2: disp(i16_gen2_a) is i16_gen2_op=0b11 & i16_gen2_a ; disp { tmp:4 = i16_gen2_a + disp; export tmp; }
 gen2: *+disp is i16_gen2=0b11011 ; disp { tmp:4 = PC + disp; export tmp; }
@@ -270,7 +270,7 @@ gen2: idx_gen[idx_reg^":D"] is i16_gen2=0b11111 ; idx_reg & idx_gen { export 0:4
 :CMP^i  gen1,gen2 is (i & fmt4_op=0b0001)... & gen1 & gen2 {}
 :BIC^i  gen1,gen2 is (i & i16_i != 0b10 & fmt4_op=0b0010)... & gen1 & gen2 {}
 :ADDC^i gen1,gen2 is (i & fmt4_op=0b0100)... & gen1 & gen2 {}
-:MOV^i  gen1,gen2 is (i & fmt4_op=0b0101)... & gen1 & gen2 {}
+:MOV^i  gen1,gen2 is (i & fmt4_op=0b0101)... & gen1 ... & gen2 {}
 :OR^i   gen1,gen2 is (i & i16_i != 0b10 & fmt4_op=0b0110)... & gen1 & gen2 {}
 :SUB^i  gen1,gen2 is (i & fmt4_op=0b1000)... & gen1 & gen2 {}
 :ADDR   gen1,gen2 is (i & fmt4_op=0b1001)... & gen1 & gen2 {}
